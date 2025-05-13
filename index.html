@@ -1,309 +1,411 @@
 <!DOCTYPE html>
 <html lang="bn">
 <head>
-<meta charset="UTF-8">
-<title>উন্নত ভয়েস রিপিটার + অনুবাদ</title>
-<style>
-    body { font-family: 'SolaimanLipi', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }
-    textarea, input, button, select { width: 100%; margin-bottom: 10px; padding: 10px; }
-    button { background-color: #4CAF50; color: white; border: none; cursor: pointer; }
-    button:disabled { background-color: #cccccc; }
-    .output { border: 1px solid #ddd; padding: 10px; min-height: 50px; margin-top: 10px; }
-    .loading { color: #888; font-style: italic; }
-    #dictionaryModal {
-        display: none;
-        position: fixed;
-        z-index: 1;
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: 100%;
-        overflow: auto;
-        background-color: rgba(0,0,0,0.4);
-    }
-    .modal-content {
-        background-color: #fefefe;
-        margin: 10% auto;
-        padding: 20px;
-        border: 1px solid #888;
-        width: 80%;
-        max-height: 80%;
-        overflow-y: auto;
-    }
-    .close {
-        color: #aaa;
-        float: right;
-        font-size: 28px;
-        font-weight: bold;
-        cursor: pointer;
-    }
-    .category {
-        margin-top: 20px;
-        font-weight: bold;
-        color: #2E86C1;
-    }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>উন্নত ভয়েস রিপিটার + অনুবাদ</title>
+    <style>
+        body {
+            font-family: 'SolaimanLipi', Arial, sans-serif;
+            max-width: 100%;
+            margin: 0;
+            padding: 15px;
+            -webkit-text-size-adjust: 100%;
+            touch-action: manipulation;
+        }
+        textarea, input, button, select {
+            width: 100%;
+            margin-bottom: 12px;
+            padding: 12px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        button:active {
+            background-color: #3e8e41;
+            transform: scale(0.98);
+        }
+        button:disabled {
+            background-color: #cccccc;
+            transform: none;
+        }
+        .output {
+            border: 1px solid #ddd;
+            padding: 12px;
+            min-height: 60px;
+            margin-top: 12px;
+            border-radius: 4px;
+            background-color: #f9f9f9;
+            word-break: break-word;
+        }
+        .loading {
+            color: #888;
+            font-style: italic;
+        }
+        #dictionaryModal {
+            display: none;
+            position: fixed;
+            z-index: 100;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.7);
+            backdrop-filter: blur(5px);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 10% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .category {
+            margin-top: 20px;
+            font-weight: bold;
+            color: #2E86C1;
+            font-size: 18px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #eee;
+        }
+        #dictionaryContent ul {
+            padding-left: 20px;
+        }
+        #dictionaryContent li {
+            margin-bottom: 8px;
+            line-height: 1.5;
+        }
+        @media (max-width: 480px) {
+            textarea, input, button, select {
+                padding: 10px;
+                font-size: 14px;
+            }
+            .modal-content {
+                width: 95%;
+                margin: 5% auto;
+            }
+        }
+    </style>
 </head>
 <body>
-<h1>উন্নত ভয়েস রিপিটার + অনুবাদ</h1>
+    <h1 style="text-align: center; color: #2E86C1;">উন্নত ভয়েস রিপিটার + অনুবাদ</h1>
 
-<textarea id="textInput" rows="4" placeholder="এখানে টেক্সট লিখুন (ইংরেজি বা বাংলা)..."></textarea>
+    <textarea id="textInput" rows="4" placeholder="এখানে টেক্সট লিখুন (ইংরেজি বা বাংলা)..."></textarea>
 
-<div>
-    <label>রিপিট সংখ্যা:</label>
-    <input type="number" id="repeatCount" min="1" max="10" value="3">
-</div>
-
-<div>
-    <label>ভাষা:</label>
-    <select id="language">
-    <option value="bn">বাংলা</option>
-    <option value="en">ইংরেজি</option>
-    <option value="both">উভয় ভাষায়</option>
-    </select>
-</div>
-
-<button id="startBtn">শুরু করুন</button>
-<button id="stopBtn" disabled>বন্ধ করুন</button>
-<button id="showDictBtn">উন্নত শব্দকোষ দেখুন</button>
-
-<div id="translationOutput" class="output"></div>
-
-<!-- মোডাল ডায়ালগ বক্স -->
-<div id="dictionaryModal" class="modal">
-    <div class="modal-content">
-        <span class="close">&times;</span>
-        <h2>উন্নত শব্দকোষ</h2>
-        <div id="dictionaryContent"></div>
+    <div>
+        <label>রিপিট সংখ্যা:</label>
+        <input type="number" id="repeatCount" min="1" max="10" value="3">
     </div>
-</div>
 
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const textInput = document.getElementById('textInput');
-        const repeatCount = document.getElementById('repeatCount');
-        const languageSelect = document.getElementById('language');
-        const startBtn = document.getElementById('startBtn');
-        const stopBtn = document.getElementById('stopBtn');
-        const showDictBtn = document.getElementById('showDictBtn');
-        const translationOutput = document.getElementById('translationOutput');
-        const dictionaryModal = document.getElementById('dictionaryModal');
-        const dictionaryContent = document.getElementById('dictionaryContent');
-        const closeBtn = document.querySelector('.close');
-        
-        let isSpeaking = false;
-        let utterance = null;
-        let voices = [];
-        
-        // ভয়েস লোড করা
-        function loadVoices() {
-            voices = window.speechSynthesis.getVoices();
-        }
-        
-        speechSynthesis.onvoiceschanged = loadVoices;
-        loadVoices();
-        
-        // উন্নত শব্দভাণ্ডার (সম্প্রসারিত সংস্করণ)
-        const advancedDictionary = {
-            // প্রাণী
-            'dog': 'কুকুর', 'cat': 'বিড়াল', 'cow': 'গরু', 'goat': 'ছাগল',
-            'tiger': 'বাঘ', 'lion': 'সিংহ', 'bird': 'পাখি', 'fish': 'মাছ',
-            'elephant': 'হাতি', 'monkey': 'বানর', 'snake': 'সাপ', 'horse': 'ঘোড়া',
-            'duck': 'হাঁস', 'hen': 'মুরগি', 'cock': 'মোরগ', 'wolf': 'নেকড়ে',
+    <div>
+        <label>ভাষা:</label>
+        <select id="language">
+            <option value="bn">বাংলা</option>
+            <option value="en">ইংরেজি</option>
+            <option value="both">উভয় ভাষায়</option>
+        </select>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+        <button id="startBtn">শুরু করুন</button>
+        <button id="stopBtn" disabled>বন্ধ করুন</button>
+    </div>
+    
+    <button id="showDictBtn" style="margin-top: 10px;">উন্নত শব্দকোষ দেখুন</button>
+
+    <div id="translationOutput" class="output"></div>
+
+    <!-- মোডাল ডায়ালগ বক্স -->
+    <div id="dictionaryModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2 style="text-align: center; color: #4CAF50;">উন্নত শব্দকোষ</h2>
+            <div id="dictionaryContent"></div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // মোবাইল ডিভাইস ডিটেকশন
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
             
-            // ফল
-            'apple': 'আপেল', 'banana': 'কলা', 'mango': 'আম', 'orange': 'কমলা',
-            'grape': 'আঙ্গুর', 'pineapple': 'আনারস', 'guava': 'পেয়ারা',
-            'jackfruit': 'কাঁঠাল', 'lichi': 'লিচু', 'strawberry': 'স্ট্রবেরি',
-            'watermelon': 'তরমুজ', 'pomegranate': 'ডালিম', 'papaya': 'পেঁপে',
+            // মোবাইল ডিভাইসের জন্য অতিরিক্ত অপ্টিমাইজেশন
+            if (isMobile) {
+                document.querySelector('textarea').setAttribute('rows', '3');
+                document.querySelector('h1').style.fontSize = '22px';
+            }
+
+            const textInput = document.getElementById('textInput');
+            const repeatCount = document.getElementById('repeatCount');
+            const languageSelect = document.getElementById('language');
+            const startBtn = document.getElementById('startBtn');
+            const stopBtn = document.getElementById('stopBtn');
+            const showDictBtn = document.getElementById('showDictBtn');
+            const translationOutput = document.getElementById('translationOutput');
+            const dictionaryModal = document.getElementById('dictionaryModal');
+            const dictionaryContent = document.getElementById('dictionaryContent');
+            const closeBtn = document.querySelector('.close');
             
-            // শাকসবজি
-            'potato': 'আলু', 'tomato': 'টমেটো', 'onion': 'পেঁয়াজ', 'garlic': 'রসুন',
-            'ginger': 'আদা', 'carrot': 'গাজর', 'cucumber': 'শসা', 'brinjal': 'বেগুন',
-            'pumpkin': 'কুমড়া', 'cauliflower': 'ফুলকপি', 'cabbage': 'বাঁধাকপি',
+            let isSpeaking = false;
+            let utterance = null;
+            let voices = [];
             
-            // সাধারণ শব্দ
-            'hello': 'হ্যালো', 'good': 'ভালো', 'morning': 'সকাল', 'night': 'রাত',
-            'water': 'পানি', 'food': 'খাবার', 'house': 'বাড়ি', 'school': 'বিদ্যালয়',
-            'book': 'বই', 'pen': 'কলম', 'friend': 'বন্ধু', 'family': 'পরিবার',
-            'country': 'দেশ', 'city': 'শহর', 'village': 'গ্রাম', 'road': 'রাস্তা',
-            'tree': 'গাছ', 'flower': 'ফুল', 'sky': 'আকাশ', 'earth': 'মাটি',
-            
-            // ক্রিয়া
-            'eat': 'খাওয়া', 'drink': 'পান করা', 'go': 'যাওয়া', 'come': 'আসা',
-            'read': 'পড়া', 'write': 'লেখা', 'sleep': 'ঘুমানো', 'walk': 'হাঁটা',
-            'run': 'দৌড়ানো', 'swim': 'সাঁতার কাটা', 'talk': 'কথা বলা', 'see': 'দেখা',
-            'hear': 'শোনা', 'learn': 'শেখা', 'teach': 'শেখানো', 'play': 'খেলা',
-            
-            // সংখ্যা
-            'one': 'এক', 'two': 'দুই', 'three': 'তিন', 'four': 'চার', 'five': 'পাঁচ',
-            'six': 'ছয়', 'seven': 'সাত', 'eight': 'আট', 'nine': 'নয়', 'ten': 'দশ',
-            'twenty': 'বিশ', 'fifty': 'পঞ্চাশ', 'hundred': 'একশ', 'thousand': 'হাজার',
-            
-            // রঙ
-            'red': 'লাল', 'green': 'সবুজ', 'blue': 'নীল', 'yellow': 'হলুদ',
-            'black': 'কালো', 'white': 'সাদা', 'orange': 'কমলা', 'pink': 'গোলাপী',
-            'purple': 'বেগুনী', 'brown': 'বাদামী', 'gray': 'ধূসর',
-            
-            // আবহাওয়া
-            'sun': 'সূর্য', 'rain': 'বৃষ্টি', 'cloud': 'মেঘ', 'wind': 'বাতাস',
-            'hot': 'গরম', 'cold': 'ঠাণ্ডা', 'weather': 'আবহাওয়া', 'storm': 'ঝড়',
-            'lightning': 'বজ্রপাত', 'fog': 'কুয়াশা', 'dew': 'শিশির',
-            
-            // বাক্যাংশ
-            'how are you': 'আপনি কেমন আছেন',
-            'thank you': 'ধন্যবাদ',
-            'good morning': 'সুপ্রভাত',
-            'good night': 'শুভ রাত্রি',
-            'what is your name': 'আপনার নাম কি',
-            'my name is': 'আমার নাম',
-            'I love you': 'আমি তোমাকে ভালোবাসি'
-        };
-        
-        // শব্দকোষ মোডাল প্রদর্শন
-        showDictBtn.addEventListener('click', function() {
-            dictionaryContent.innerHTML = '';
-            
-            // ক্যাটাগরি অনুযায়ী শব্দ সাজানো
-            const categories = {
-                'প্রাণী': ['dog', 'cat', 'cow', 'goat', 'tiger', 'lion', 'elephant'],
-                'ফল': ['apple', 'banana', 'mango', 'orange', 'grape', 'pineapple'],
-                'শাকসবজি': ['potato', 'tomato', 'onion', 'garlic', 'ginger'],
-                'সাধারণ শব্দ': ['hello', 'good', 'morning', 'night', 'water'],
-                'ক্রিয়া': ['eat', 'drink', 'go', 'come', 'read', 'write'],
-                'সংখ্যা': ['one', 'two', 'three', 'four', 'five', 'six'],
-                'রঙ': ['red', 'green', 'blue', 'yellow', 'black'],
-                'আবহাওয়া': ['sun', 'rain', 'cloud', 'wind', 'hot'],
-                'বাক্যাংশ': ['how are you', 'thank you', 'good morning']
+            // ভয়েস লোড করা - মোবাইল কম্প্যাটিবিলিটি
+            function loadVoices() {
+                return new Promise(resolve => {
+                    voices = window.speechSynthesis.getVoices();
+                    if (voices.length) {
+                        resolve(voices);
+                    } else {
+                        window.speechSynthesis.onvoiceschanged = () => {
+                            voices = window.speechSynthesis.getVoices();
+                            resolve(voices);
+                        };
+                    }
+                });
+            }
+
+            // উন্নত শব্দভাণ্ডার (মোবাইল ফ্রেন্ডলি সংস্করণ)
+            const advancedDictionary = {
+                // প্রাণী
+                'dog': 'কুকুর', 'cat': 'বিড়াল', 'cow': 'গরু', 'goat': 'ছাগল',
+                'tiger': 'বাঘ', 'lion': 'সিংহ', 'bird': 'পাখি', 'fish': 'মাছ',
+                'elephant': 'হাতি', 'monkey': 'বানর', 'snake': 'সাপ', 'horse': 'ঘোড়া',
+                
+                // ফল
+                'apple': 'আপেল', 'banana': 'কলা', 'mango': 'আম', 'orange': 'কমলা',
+                'grape': 'আঙ্গুর', 'pineapple': 'আনারস', 'guava': 'পেয়ারা',
+                'jackfruit': 'কাঁঠাল', 'lichi': 'লিচু', 'watermelon': 'তরমুজ',
+                
+                // শাকসবজি
+                'potato': 'আলু', 'tomato': 'টমেটো', 'onion': 'পেঁয়াজ', 'garlic': 'রসুন',
+                'ginger': 'আদা', 'carrot': 'গাজর', 'cucumber': 'শসা', 'brinjal': 'বেগুন',
+                
+                // সাধারণ শব্দ
+                'hello': 'হ্যালো', 'good': 'ভালো', 'morning': 'সকাল', 'night': 'রাত',
+                'water': 'পানি', 'food': 'খাবার', 'house': 'বাড়ি', 'school': 'বিদ্যালয়',
+                'book': 'বই', 'pen': 'কলম', 'friend': 'বন্ধু', 'family': 'পরিবার',
+                
+                // ক্রিয়া
+                'eat': 'খাওয়া', 'drink': 'পান করা', 'go': 'যাওয়া', 'come': 'আসা',
+                'read': 'পড়া', 'write': 'লেখা', 'sleep': 'ঘুমানো', 'walk': 'হাঁটা',
+                
+                // সংখ্যা
+                'one': 'এক', 'two': 'দুই', 'three': 'তিন', 'four': 'চার', 'five': 'পাঁচ',
+                'six': 'ছয়', 'seven': 'সাত', 'eight': 'আট', 'nine': 'নয়', 'ten': 'দশ',
+                
+                // বাক্যাংশ
+                'how are you': 'আপনি কেমন আছেন',
+                'thank you': 'ধন্যবাদ',
+                'good morning': 'সুপ্রভাত',
+                'good night': 'শুভ রাত্রি',
+                'what is your name': 'আপনার নাম কি',
+                'my name is': 'আমার নাম'
             };
             
-            for (const [category, words] of Object.entries(categories)) {
-                let categoryHTML = `<div class="category">${category}</div><ul>`;
+            // শব্দকোষ মোডাল প্রদর্শন (মোবাইল ফ্রেন্ডলি)
+            showDictBtn.addEventListener('click', function() {
+                dictionaryContent.innerHTML = '';
                 
-                words.forEach(word => {
-                    categoryHTML += `<li><strong>${word}:</strong> ${advancedDictionary[word]}</li>`;
+                const categories = {
+                    'প্রাণী': ['dog', 'cat', 'cow', 'goat', 'tiger', 'lion', 'elephant'],
+                    'ফল': ['apple', 'banana', 'mango', 'orange', 'grape', 'pineapple'],
+                    'শাকসবজি': ['potato', 'tomato', 'onion', 'garlic', 'ginger'],
+                    'সাধারণ শব্দ': ['hello', 'good', 'morning', 'night', 'water'],
+                    'ক্রিয়া': ['eat', 'drink', 'go', 'come', 'read', 'write'],
+                    'সংখ্যা': ['one', 'two', 'three', 'four', 'five', 'six'],
+                    'বাক্যাংশ': ['how are you', 'thank you', 'good morning']
+                };
+                
+                for (const [category, words] of Object.entries(categories)) {
+                    let categoryHTML = `<div class="category">${category}</div><ul>`;
+                    
+                    words.forEach(word => {
+                        categoryHTML += `<li><strong>${word}:</strong> ${advancedDictionary[word]}</li>`;
+                    });
+                    
+                    categoryHTML += '</ul>';
+                    dictionaryContent.innerHTML += categoryHTML;
+                }
+                
+                dictionaryModal.style.display = 'block';
+            });
+        
+            // মোডাল বন্ধ করা
+            closeBtn.addEventListener('click', function() {
+                dictionaryModal.style.display = 'none';
+            });
+            
+            window.addEventListener('click', function(event) {
+                if (event.target == dictionaryModal) {
+                    dictionaryModal.style.display = 'none';
+                }
+            });
+            
+            // টাচ ইভেন্ট হ্যান্ডলিং (মোবাইলের জন্য)
+            document.querySelectorAll('button').forEach(btn => {
+                btn.addEventListener('touchstart', function(e) {
+                    e.preventDefault();
+                    this.style.opacity = '0.7';
                 });
                 
-                categoryHTML += '</ul>';
-                dictionaryContent.innerHTML += categoryHTML;
-            }
-            
-            dictionaryModal.style.display = 'block';
-        });
-        
-        // মোডাল বন্ধ করা
-        closeBtn.addEventListener('click', function() {
-            dictionaryModal.style.display = 'none';
-        });
-        
-        window.addEventListener('click', function(event) {
-            if (event.target == dictionaryModal) {
-                dictionaryModal.style.display = 'none';
-            }
-        });
-        
-        // Google Translate API ব্যবহার করে অনুবাদ (সিমুলেটেড)
-        async function translateWithAPI(text, targetLang) {
-            translationOutput.innerHTML = '<div class="loading">অনুবাদ হচ্ছে...</div>';
-            
-            return new Promise((resolve) => {
-                setTimeout(() => {
-                    if (targetLang === 'bn') {
-                        const lowerText = text.toLowerCase();
-                        if (advancedDictionary[lowerText]) {
-                            resolve(advancedDictionary[lowerText]);
-                            return;
-                        }
-                        
-                        const simpleTranslations = {
-                            'how are you': 'আপনি কেমন আছেন',
-                            'thank you': 'ধন্যবাদ',
-                            'good morning': 'সুপ্রভাত',
-                            'good night': 'শুভ রাত্রি'
-                        };
-                        
-                        if (simpleTranslations[lowerText]) {
-                            resolve(simpleTranslations[lowerText]);
-                        } else {
-                            resolve(`${text} (অনূদিত)`);
-                        }
-                    } else {
-                        resolve(text);
-                    }
-                }, 1000);
+                btn.addEventListener('touchend', function(e) {
+                    e.preventDefault();
+                    this.style.opacity = '1';
+                });
             });
-        }
-        
-        // শুরু বাটনে ক্লিক করলে
-        startBtn.addEventListener('click', async function() {
-            if (isSpeaking) return;
             
-            const text = textInput.value.trim();
-            if (!text) {
-                alert("টেক্সট লিখুন!");
-                return;
+            // অনুবাদ ফাংশন (মোবাইল কম্প্যাটিবল)
+            async function translateWithAPI(text, targetLang) {
+                translationOutput.innerHTML = '<div class="loading">অনুবাদ হচ্ছে...</div>';
+                
+                // মোবাইল ডিভাইসে দ্রুত প্রতিক্রিয়ার জন্য সিমুলেশন
+                return new Promise((resolve) => {
+                    setTimeout(() => {
+                        if (targetLang === 'bn') {
+                            const lowerText = text.toLowerCase();
+                            if (advancedDictionary[lowerText]) {
+                                resolve(advancedDictionary[lowerText]);
+                                return;
+                            }
+                            
+                            if (lowerText.includes('how are you')) {
+                                resolve('আপনি কেমন আছেন');
+                            } else if (lowerText.includes('thank you')) {
+                                resolve('ধন্যবাদ');
+                            } else {
+                                resolve(`${text} (অনূদিত)`);
+                            }
+                        } else {
+                            resolve(text);
+                        }
+                    }, isMobile ? 500 : 1000); // মোবাইলে দ্রুত প্রতিক্রিয়া
+                });
             }
             
-            const selectedLanguage = languageSelect.value;
-            let speakText = text;
-            let translatedText = '';
-            
-            if (selectedLanguage === 'bn' || selectedLanguage === 'both') {
-                translatedText = await translateWithAPI(text, 'bn');
-                translationOutput.innerHTML = `<strong>অনুবাদ:</strong> ${translatedText}`;
-            }
-            
-            isSpeaking = true;
-            startBtn.disabled = true;
-            stopBtn.disabled = false;
-            
-            function speak(textToSpeak, lang) {
+            // স্পিচ ফাংশন (মোবাইল কম্প্যাটিবল)
+            async function speak(textToSpeak, lang) {
+                await loadVoices(); // ভয়েস লোড নিশ্চিত করা
+                
                 return new Promise((resolve) => {
                     const utterance = new SpeechSynthesisUtterance(textToSpeak);
                     
+                    // মোবাইল ডিভাইসে ভয়েস সিলেকশন
                     if (lang === 'bn') {
-                        utterance.voice = voices.find(v => v.lang.includes("bn")) || null;
+                        utterance.voice = voices.find(v => v.lang.includes("bn") || v.lang.includes("BD") || v.lang.includes("IN")) || null;
                     } else if (lang === 'en') {
-                        utterance.voice = voices.find(v => v.lang.includes("en")) || null;
+                        utterance.voice = voices.find(v => v.lang.includes("en") || v.lang.includes("US") || v.lang.includes("GB")) || null;
                     }
                     
+                    // মোবাইলের জন্য ভলিউম ও রেট সেটিং
+                    utterance.volume = 1;
+                    utterance.rate = isMobile ? 0.9 : 1;
+                    utterance.pitch = 1;
+                    
                     utterance.onend = resolve;
-                    speechSynthesis.speak(utterance);
+                    utterance.onerror = (e) => {
+                        console.error('Speech error:', e);
+                        resolve();
+                    };
+                    
+                    // iOS এর জন্য বিশেষ হ্যান্ডলিং
+                    if (isMobile) {
+                        window.speechSynthesis.cancel(); // পূর্বের স্পিচ ক্লিয়ার
+                        setTimeout(() => {
+                            window.speechSynthesis.speak(utterance);
+                        }, 100);
+                    } else {
+                        window.speechSynthesis.speak(utterance);
+                    }
                 });
             }
             
-            async function startSpeaking() {
-                const repeats = parseInt(repeatCount.value);
+            // শুরু বাটনে ক্লিক করলে (মোবাইল ফ্রেন্ডলি)
+            startBtn.addEventListener('click', async function() {
+                if (isSpeaking) return;
                 
-                for (let i = 0; i < repeats; i++) {
-                    if (!isSpeaking) break;
-                    
-                    if (selectedLanguage === 'both' && translatedText) {
-                        await speak(text, 'en');
-                        await speak(translatedText, 'bn');
-                    } else if (selectedLanguage === 'bn' && translatedText) {
-                        await speak(translatedText, 'bn');
-                    } else {
-                        await speak(text, 'en');
-                    }
+                const text = textInput.value.trim();
+                if (!text) {
+                    alert("টেক্সট লিখুন!");
+                    return;
                 }
                 
+                // ভার্চুয়াল কিবোর্ড ক্লোজ করার চেষ্টা (মোবাইলের জন্য)
+                if (isMobile) {
+                    textInput.blur();
+                }
+                
+                const selectedLanguage = languageSelect.value;
+                let speakText = text;
+                let translatedText = '';
+                
+                if (selectedLanguage === 'bn' || selectedLanguage === 'both') {
+                    translatedText = await translateWithAPI(text, 'bn');
+                    translationOutput.innerHTML = `<strong>অনুবাদ:</strong> ${translatedText}`;
+                }
+                
+                isSpeaking = true;
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                
+                async function startSpeaking() {
+                    const repeats = parseInt(repeatCount.value);
+                    
+                    for (let i = 0; i < repeats; i++) {
+                        if (!isSpeaking) break;
+                        
+                        if (selectedLanguage === 'both' && translatedText) {
+                            await speak(text, 'en');
+                            await speak(translatedText, 'bn');
+                        } else if (selectedLanguage === 'bn' && translatedText) {
+                            await speak(translatedText, 'bn');
+                        } else {
+                            await speak(text, 'en');
+                        }
+                        
+                        // মোবাইলের জন্য ছোট বিরতি
+                        if (isMobile && i < repeats - 1) {
+                            await new Promise(resolve => setTimeout(resolve, 500));
+                        }
+                    }
+                    
+                    isSpeaking = false;
+                    startBtn.disabled = false;
+                    stopBtn.disabled = true;
+                }
+                
+                startSpeaking();
+            });
+            
+            // বন্ধ বাটনে ক্লিক করলে
+            stopBtn.addEventListener('click', function() {
+                window.speechSynthesis.cancel();
                 isSpeaking = false;
                 startBtn.disabled = false;
                 stopBtn.disabled = true;
-            }
-            
-            startSpeaking();
+            });
         });
-        
-        // বন্ধ বাটনে ক্লিক করলে
-        stopBtn.addEventListener('click', function() {
-            speechSynthesis.cancel();
-            isSpeaking = false;
-            startBtn.disabled = false;
-            stopBtn.disabled = true;
-        });
-    });
-</script>
+    </script>
 </body>
 </html>
