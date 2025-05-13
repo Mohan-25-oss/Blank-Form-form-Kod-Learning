@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<title>উন্নত ভয়েস রিপিটার + অনুবাদ</title>
+<style>
+    body { font-family: 'SolaimanLipi', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; }
+    textarea, input, button, select { width: 100%; margin-bottom: 10px; padding: 10px; }
+    button { background-color: #4CAF50; color: white; border: none; cursor: pointer; }
+    button:disabled { background-color: #cccccc; }
+    .output { border: 1px solid #ddd; padding: 10px; min-height: 50px; margin-top: 10px; }
+    .loading { color: #888; font-style: italic; }
+    #dictionaryModal {
+        display: none;
+        position: fixed;
+        z-index: 1;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(0,0,0,0.4);
+    }
+    .modal-content {
+        background-color: #fefefe;
+        margin: 10% auto;
+        padding: 20px;
+        border: 1px solid #888;
+        width: 80%;
+        max-height: 80%;
+        overflow-y: auto;
+    }
+    .close {
+        color: #aaa;
+        float: right;
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+    .category {
+        margin-top: 20px;
+        font-weight: bold;
+        color: #2E86C1;
+    }
+</style>
+</head>
+<body>
+<h1>উন্নত ভয়েস রিপিটার + অনুবাদ</h1>
+
+<textarea id="textInput" rows="4" placeholder="এখানে টেক্সট লিখুন (ইংরেজি বা বাংলা)..."></textarea>
+
+<div>
+    <label>রিপিট সংখ্যা:</label>
+    <input type="number" id="repeatCount" min="1" max="10" value="3">
+</div>
+
+<div>
+    <label>ভাষা:</label>
+    <select id="language">
+    <option value="bn">বাংলা</option>
+    <option value="en">ইংরেজি</option>
+    <option value="both">উভয় ভাষায়</option>
+    </select>
+</div>
+
+<button id="startBtn">শুরু করুন</button>
+<button id="stopBtn" disabled>বন্ধ করুন</button>
+<button id="showDictBtn">উন্নত শব্দকোষ দেখুন</button>
+
+<div id="translationOutput" class="output"></div>
+
+<!-- মোডাল ডায়ালগ বক্স -->
+<div id="dictionaryModal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h2>উন্নত শব্দকোষ</h2>
+        <div id="dictionaryContent"></div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const textInput = document.getElementById('textInput');
+        const repeatCount = document.getElementById('repeatCount');
+        const languageSelect = document.getElementById('language');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const showDictBtn = document.getElementById('showDictBtn');
+        const translationOutput = document.getElementById('translationOutput');
+        const dictionaryModal = document.getElementById('dictionaryModal');
+        const dictionaryContent = document.getElementById('dictionaryContent');
+        const closeBtn = document.querySelector('.close');
+        
+        let isSpeaking = false;
+        let utterance = null;
+        let voices = [];
+        
+        // ভয়েস লোড করা
+        function loadVoices() {
+            voices = window.speechSynthesis.getVoices();
+        }
+        
+        speechSynthesis.onvoiceschanged = loadVoices;
+        loadVoices();
+        
+        // উন্নত শব্দভাণ্ডার (সম্প্রসারিত সংস্করণ)
+        const advancedDictionary = {
+            // প্রাণী
+            'dog': 'কুকুর', 'cat': 'বিড়াল', 'cow': 'গরু', 'goat': 'ছাগল',
+            'tiger': 'বাঘ', 'lion': 'সিংহ', 'bird': 'পাখি', 'fish': 'মাছ',
+            'elephant': 'হাতি', 'monkey': 'বানর', 'snake': 'সাপ', 'horse': 'ঘোড়া',
+            'duck': 'হাঁস', 'hen': 'মুরগি', 'cock': 'মোরগ', 'wolf': 'নেকড়ে',
+            
+            // ফল
+            'apple': 'আপেল', 'banana': 'কলা', 'mango': 'আম', 'orange': 'কমলা',
+            'grape': 'আঙ্গুর', 'pineapple': 'আনারস', 'guava': 'পেয়ারা',
+            'jackfruit': 'কাঁঠাল', 'lichi': 'লিচু', 'strawberry': 'স্ট্রবেরি',
+            'watermelon': 'তরমুজ', 'pomegranate': 'ডালিম', 'papaya': 'পেঁপে',
+            
+            // শাকসবজি
+            'potato': 'আলু', 'tomato': 'টমেটো', 'onion': 'পেঁয়াজ', 'garlic': 'রসুন',
+            'ginger': 'আদা', 'carrot': 'গাজর', 'cucumber': 'শসা', 'brinjal': 'বেগুন',
+            'pumpkin': 'কুমড়া', 'cauliflower': 'ফুলকপি', 'cabbage': 'বাঁধাকপি',
+            
+            // সাধারণ শব্দ
+            'hello': 'হ্যালো', 'good': 'ভালো', 'morning': 'সকাল', 'night': 'রাত',
+            'water': 'পানি', 'food': 'খাবার', 'house': 'বাড়ি', 'school': 'বিদ্যালয়',
+            'book': 'বই', 'pen': 'কলম', 'friend': 'বন্ধু', 'family': 'পরিবার',
+            'country': 'দেশ', 'city': 'শহর', 'village': 'গ্রাম', 'road': 'রাস্তা',
+            'tree': 'গাছ', 'flower': 'ফুল', 'sky': 'আকাশ', 'earth': 'মাটি',
+            
+            // ক্রিয়া
+            'eat': 'খাওয়া', 'drink': 'পান করা', 'go': 'যাওয়া', 'come': 'আসা',
+            'read': 'পড়া', 'write': 'লেখা', 'sleep': 'ঘুমানো', 'walk': 'হাঁটা',
+            'run': 'দৌড়ানো', 'swim': 'সাঁতার কাটা', 'talk': 'কথা বলা', 'see': 'দেখা',
+            'hear': 'শোনা', 'learn': 'শেখা', 'teach': 'শেখানো', 'play': 'খেলা',
+            
+            // সংখ্যা
+            'one': 'এক', 'two': 'দুই', 'three': 'তিন', 'four': 'চার', 'five': 'পাঁচ',
+            'six': 'ছয়', 'seven': 'সাত', 'eight': 'আট', 'nine': 'নয়', 'ten': 'দশ',
+            'twenty': 'বিশ', 'fifty': 'পঞ্চাশ', 'hundred': 'একশ', 'thousand': 'হাজার',
+            
+            // রঙ
+            'red': 'লাল', 'green': 'সবুজ', 'blue': 'নীল', 'yellow': 'হলুদ',
+            'black': 'কালো', 'white': 'সাদা', 'orange': 'কমলা', 'pink': 'গোলাপী',
+            'purple': 'বেগুনী', 'brown': 'বাদামী', 'gray': 'ধূসর',
+            
+            // আবহাওয়া
+            'sun': 'সূর্য', 'rain': 'বৃষ্টি', 'cloud': 'মেঘ', 'wind': 'বাতাস',
+            'hot': 'গরম', 'cold': 'ঠাণ্ডা', 'weather': 'আবহাওয়া', 'storm': 'ঝড়',
+            'lightning': 'বজ্রপাত', 'fog': 'কুয়াশা', 'dew': 'শিশির',
+            
+            // বাক্যাংশ
+            'how are you': 'আপনি কেমন আছেন',
+            'thank you': 'ধন্যবাদ',
+            'good morning': 'সুপ্রভাত',
+            'good night': 'শুভ রাত্রি',
+            'what is your name': 'আপনার নাম কি',
+            'my name is': 'আমার নাম',
+            'I love you': 'আমি তোমাকে ভালোবাসি'
+        };
+        
+        // শব্দকোষ মোডাল প্রদর্শন
+        showDictBtn.addEventListener('click', function() {
+            dictionaryContent.innerHTML = '';
+            
+            // ক্যাটাগরি অনুযায়ী শব্দ সাজানো
+            const categories = {
+                'প্রাণী': ['dog', 'cat', 'cow', 'goat', 'tiger', 'lion', 'elephant'],
+                'ফল': ['apple', 'banana', 'mango', 'orange', 'grape', 'pineapple'],
+                'শাকসবজি': ['potato', 'tomato', 'onion', 'garlic', 'ginger'],
+                'সাধারণ শব্দ': ['hello', 'good', 'morning', 'night', 'water'],
+                'ক্রিয়া': ['eat', 'drink', 'go', 'come', 'read', 'write'],
+                'সংখ্যা': ['one', 'two', 'three', 'four', 'five', 'six'],
+                'রঙ': ['red', 'green', 'blue', 'yellow', 'black'],
+                'আবহাওয়া': ['sun', 'rain', 'cloud', 'wind', 'hot'],
+                'বাক্যাংশ': ['how are you', 'thank you', 'good morning']
+            };
+            
+            for (const [category, words] of Object.entries(categories)) {
+                let categoryHTML = `<div class="category">${category}</div><ul>`;
+                
+                words.forEach(word => {
+                    categoryHTML += `<li><strong>${word}:</strong> ${advancedDictionary[word]}</li>`;
+                });
+                
+                categoryHTML += '</ul>';
+                dictionaryContent.innerHTML += categoryHTML;
+            }
+            
+            dictionaryModal.style.display = 'block';
+        });
+        
+        // মোডাল বন্ধ করা
+        closeBtn.addEventListener('click', function() {
+            dictionaryModal.style.display = 'none';
+        });
+        
+        window.addEventListener('click', function(event) {
+            if (event.target == dictionaryModal) {
+                dictionaryModal.style.display = 'none';
+            }
+        });
+        
+        // Google Translate API ব্যবহার করে অনুবাদ (সিমুলেটেড)
+        async function translateWithAPI(text, targetLang) {
+            translationOutput.innerHTML = '<div class="loading">অনুবাদ হচ্ছে...</div>';
+            
+            return new Promise((resolve) => {
+                setTimeout(() => {
+                    if (targetLang === 'bn') {
+                        const lowerText = text.toLowerCase();
+                        if (advancedDictionary[lowerText]) {
+                            resolve(advancedDictionary[lowerText]);
+                            return;
+                        }
+                        
+                        const simpleTranslations = {
+                            'how are you': 'আপনি কেমন আছেন',
+                            'thank you': 'ধন্যবাদ',
+                            'good morning': 'সুপ্রভাত',
+                            'good night': 'শুভ রাত্রি'
+                        };
+                        
+                        if (simpleTranslations[lowerText]) {
+                            resolve(simpleTranslations[lowerText]);
+                        } else {
+                            resolve(`${text} (অনূদিত)`);
+                        }
+                    } else {
+                        resolve(text);
+                    }
+                }, 1000);
+            });
+        }
+        
+        // শুরু বাটনে ক্লিক করলে
+        startBtn.addEventListener('click', async function() {
+            if (isSpeaking) return;
+            
+            const text = textInput.value.trim();
+            if (!text) {
+                alert("টেক্সট লিখুন!");
+                return;
+            }
+            
+            const selectedLanguage = languageSelect.value;
+            let speakText = text;
+            let translatedText = '';
+            
+            if (selectedLanguage === 'bn' || selectedLanguage === 'both') {
+                translatedText = await translateWithAPI(text, 'bn');
+                translationOutput.innerHTML = `<strong>অনুবাদ:</strong> ${translatedText}`;
+            }
+            
+            isSpeaking = true;
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+            
+            function speak(textToSpeak, lang) {
+                return new Promise((resolve) => {
+                    const utterance = new SpeechSynthesisUtterance(textToSpeak);
+                    
+                    if (lang === 'bn') {
+                        utterance.voice = voices.find(v => v.lang.includes("bn")) || null;
+                    } else if (lang === 'en') {
+                        utterance.voice = voices.find(v => v.lang.includes("en")) || null;
+                    }
+                    
+                    utterance.onend = resolve;
+                    speechSynthesis.speak(utterance);
+                });
+            }
+            
+            async function startSpeaking() {
+                const repeats = parseInt(repeatCount.value);
+                
+                for (let i = 0; i < repeats; i++) {
+                    if (!isSpeaking) break;
+                    
+                    if (selectedLanguage === 'both' && translatedText) {
+                        await speak(text, 'en');
+                        await speak(translatedText, 'bn');
+                    } else if (selectedLanguage === 'bn' && translatedText) {
+                        await speak(translatedText, 'bn');
+                    } else {
+                        await speak(text, 'en');
+                    }
+                }
+                
+                isSpeaking = false;
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+            }
+            
+            startSpeaking();
+        });
+        
+        // বন্ধ বাটনে ক্লিক করলে
+        stopBtn.addEventListener('click', function() {
+            speechSynthesis.cancel();
+            isSpeaking = false;
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+        });
+    });
+</script>
+</body>
+</html>
